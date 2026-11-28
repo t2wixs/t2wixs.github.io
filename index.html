@@ -1,150 +1,333 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Supabase Auth</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вход и Регистрация</title>
+    
+    <!-- 1. Подключаем библиотеку Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- 2. Добавляем стили (CSS) -->
+    <style>
+        :root {
+            --primary-color: #3ECF8E; /* Фирменный зеленый цвет Supabase */
+            --primary-hover: #36b37e;
+            --bg-color: #f4f7f6;
+            --text-color: #333;
+            --border-color: #ddd;
+            --danger-color: #e74c3c;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            background-color: #fff;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--text-color);
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+
+        .status {
+            text-align: center;
+            margin-bottom: 25px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .status span {
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        h2 {
+            font-size: 18px;
+            color: var(--text-color);
+            margin-bottom: 15px;
+            margin-top: 20px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 5px;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-bottom: 10px;
+        }
+
+        button:hover {
+            background-color: var(--primary-hover);
+        }
+
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .message {
+            text-align: center;
+            font-size: 14px;
+            margin-top: 15px;
+            min-height: 20px;
+        }
+
+        .message.error {
+            color: var(--danger-color);
+        }
+
+        .message.success {
+            color: var(--primary-color);
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .action-buttons button {
+            margin-bottom: 0;
+        }
+
+        /* Кнопка выхода делаем менее яркой */
+        .btn-secondary {
+            background-color: #f0f0f0;
+            color: var(--text-color);
+        }
+
+        .btn-secondary:hover {
+            background-color: #e0e0e0;
+        }
+    </style>
 </head>
 <body>
-  <h1>Регистрация и вход</h1>
 
-  <p id="authStatus">Проверяю сессию…</p>
+<div class="container">
+    <h1>Добро пожаловать</h1>
+    
+    <div class="status" id="status-text">Проверка авторизации...</div>
 
-  <h2>Sign up</h2>
-  <form id="signUpForm">
-    <input name="email" type="email" placeholder="Email" required>
-    <input name="password" type="password" placeholder="Пароль" required minlength="6">
-    <button type="submit">Зарегистрироваться</button>
-  </form>
+    <!-- Блок авторизованного пользователя -->
+    <div id="logged-in-view" class="hidden">
+        <p style="text-align: center; margin-bottom: 20px;">
+            Вы успешно вошли в систему.
+        </p>
+        <button onclick="loadUserData()">Загрузить данные</button>
+        <button class="btn-secondary" onclick="signOut()">Выйти</button>
+        <div class="message" id="data-message"></div>
+    </div>
 
-  <h2>Sign in</h2>
-  <form id="signInForm">
-    <input name="email" type="email" placeholder="Email" required>
-    <input name="password" type="password" placeholder="Пароль" required>
-    <button type="submit">Войти</button>
-  </form>
+    <!-- Блок формы Входа/Регистрации -->
+    <div id="auth-view">
+        <h2>Вход</h2>
+        <div class="input-group">
+            <input type="email" id="login-email" placeholder="Email">
+        </div>
+        <div class="input-group">
+            <input type="password" id="login-password" placeholder="Пароль">
+        </div>
+        <button onclick="signIn()">Войти</button>
 
-  <p id="message" role="status"></p>
+        <h2>Регистрация</h2>
+        <div class="input-group">
+            <input type="email" id="signup-email" placeholder="Email">
+        </div>
+        <div class="input-group">
+            <input type="password" id="signup-password" placeholder="Пароль">
+        </div>
+        <button onclick="signUp()">Зарегистрироваться</button>
+    </div>
 
-  <button id="loadButton" type="button" disabled>Загрузить user</button>
-  <button id="signOutButton" type="button" disabled>Выйти</button>
+    <div class="message" id="auth-message"></div>
+</div>
 
-  <pre id="results"></pre>
+<script>
+    // --- ИНИЦИАЛИЗАЦИЯ ---
+    const SUPABASE_URL = "https://tavghdrgocxqbcpxmpmk.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_6IWNSolFd6yguQMkyeOUEA_-8f68GwO";
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script>
-    const client = supabase.createClient(
-      "https://lzvafutsflrtrjgbudsf.supabase.co",
-      "sb_publishable_jpbsrMKWzL7FR-FkeRzOjg_ElIDrHZj"
-    );
+    // --- ЭЛЕМЕНТЫ ИНТЕРФЕЙСА ---
+    const authView = document.getElementById('auth-view');
+    const loggedInView = document.getElementById('logged-in-view');
+    const statusText = document.getElementById('status-text');
+    const authMessage = document.getElementById('auth-message');
+    const dataMessage = document.getElementById('data-message');
 
-    const authStatus = document.getElementById("authStatus");
-    const message = document.getElementById("message");
-    const results = document.getElementById("results");
-    const loadButton = document.getElementById("loadButton");
-    const signOutButton = document.getElementById("signOutButton");
-
-    function showUser(user) {
-      if (user) {
-        authStatus.textContent = `Вы вошли как ${user.email}`;
-        loadButton.disabled = false;
-        signOutButton.disabled = false;
-      } else {
-        authStatus.textContent = "Вы не вошли";
-        loadButton.disabled = true;
-        signOutButton.disabled = true;
-      }
+    // --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ---
+    function showMessage(element, text, isError = false) {
+        element.textContent = text;
+        element.className = 'message ' + (isError ? 'error' : 'success');
     }
 
-    async function loadUsers() {
-      const { data, error } = await client
-        .from("user")
-        .select("*");
-
-      if (error) {
-        message.textContent = `Ошибка загрузки: ${error.message}`;
-        return;
-      }
-
-      results.textContent = JSON.stringify(data, null, 2);
-      message.textContent = `Загружено записей: ${data.length}`;
+    function clearMessage(element) {
+        element.textContent = '';
+        element.className = 'message';
     }
 
-    document.getElementById("signUpForm").addEventListener("submit", async (event) => {
-      event.preventDefault();
-      message.textContent = "";
+    function updateUI(user) {
+        if (user) {
+            statusText.innerHTML = `Вы вошли как <span>${user.email}</span>`;
+            authView.classList.add('hidden');
+            loggedInView.classList.remove('hidden');
+        } else {
+            statusText.textContent = 'Вы не авторизованы.';
+            authView.classList.remove('hidden');
+            loggedInView.classList.add('hidden');
+            clearMessage(dataMessage);
+        }
+    }
 
-      const formData = new FormData(event.currentTarget);
-      const email = formData.get("email");
-      const password = formData.get("password");
+    // --- ЛОГИКА АВТОРИЗАЦИИ ---
 
-      const { data, error } = await client.auth.signUp({ email, password });
+    // Проверка сессии при загрузке страницы
+    async function checkSession() {
+        const { data: { session }, error } = await supabaseClient.auth.getSession();
+        if (session) {
+            updateUI(session.user);
+        } else {
+            updateUI(null);
+        }
+    }
 
-      if (error) {
-        message.textContent = `Ошибка регистрации: ${error.message}`;
-        return;
-      }
+    // Вход
+    async function signIn() {
+        clearMessage(authMessage);
+        const email = document.getElementById('login-email').value;
+        const password = document.getElementById('login-password').value;
 
-      if (data.session) {
-        showUser(data.user);
-        message.textContent = "Аккаунт создан, вы вошли.";
-      } else {
-        message.textContent =
-          "Регистрация отправлена. Проверьте почту и подтвердите email, затем войдите.";
-      }
-    });
+        if (!email || !password) {
+            showMessage(authMessage, 'Заполните email и пароль', true);
+            return;
+        }
 
-    document.getElementById("signInForm").addEventListener("submit", async (event) => {
-      event.preventDefault();
-      message.textContent = "";
+        const { data, error } = await supabaseClient.auth.signInWithPassword({
+            email: email,
+            password: password,
+        });
 
-      const formData = new FormData(event.currentTarget);
-      const email = formData.get("email");
-      const password = formData.get("password");
+        if (error) {
+            showMessage(authMessage, 'Ошибка входа: ' + error.message, true);
+        } else {
+            updateUI(data.user);
+        }
+    }
 
-      const { data, error } = await client.auth.signInWithPassword({
-        email,
-        password
-      });
+    // Регистрация
+    async function signUp() {
+        clearMessage(authMessage);
+        const email = document.getElementById('signup-email').value;
+        const password = document.getElementById('signup-password').value;
 
-      if (error) {
-        message.textContent = `Ошибка входа: ${error.message}`;
-        return;
-      }
+        if (!email || !password) {
+            showMessage(authMessage, 'Заполните email и пароль', true);
+            return;
+        }
 
-      showUser(data.user);
-      message.textContent = "Вы вошли.";
-    });
+        const { data, error } = await supabaseClient.auth.signUp({
+            email: email,
+            password: password,
+        });
 
-    loadButton.addEventListener("click", loadUsers);
+        if (error) {
+            showMessage(authMessage, 'Ошибка регистрации: ' + error.message, true);
+        } else {
+            showMessage(authMessage, 'Успешно! Проверьте почту для подтверждения.', false);
+            // Если подтверждение почты отключено в Supabase, пользователь войдет сразу
+            if (data.session) {
+                updateUI(data.user);
+            }
+        }
+    }
 
-    signOutButton.addEventListener("click", async () => {
-      const { error } = await client.auth.signOut();
+    // Выход
+    async function signOut() {
+        await supabaseClient.auth.signOut();
+        updateUI(null);
+        showMessage(authMessage, 'Вы вышли из системы.', false);
+    }
 
-      if (error) {
-        message.textContent = `Ошибка выхода: ${error.message}`;
-        return;
-      }
+    // --- РАБОТА С БАЗОЙ ДАННЫХ ---
 
-      showUser(null);
-      results.textContent = "";
-      message.textContent = "Вы вышли из аккаунта.";
-    });
+    async function loadUserData() {
+        clearMessage(dataMessage);
+        showMessage(dataMessage, 'Загрузка...', false);
 
-    // Проверяем, есть ли уже активная сессия
-    client.auth.getSession().then(({ data, error }) => {
-      if (error) {
-        authStatus.textContent = `Ошибка проверки сессии: ${error.message}`;
-        return;
-      }
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        
+        if (!user) return;
 
-      showUser(data.session?.user ?? null);
-    });
+        // Пытаемся получить данные из таблицы users, где id совпадает с id пользователя
+        const { data, error } = await supabaseClient
+            .from('users')
+            .select('*')
+            .eq('id', user.id) 
+            .single();
 
-    // Обновляем отображение при изменении состояния авторизации
-    client.auth.onAuthStateChange((_event, session) => {
-      showUser(session?.user ?? null);
-    });
-  </script>
+        if (error) {
+            // Если записи нет, выводим сообщение (это нормально, если вы не настроили триггер)
+            showMessage(dataMessage, 'Данные в таблице не найдены (или ошибка RLS).', true);
+            console.error(error);
+        } else {
+            showMessage(dataMessage, `Данные: ${JSON.stringify(data)}`, false);
+        }
+    }
+
+    // --- ЗАПУСК ---
+    checkSession();
+</script>
+
 </body>
 </html>
