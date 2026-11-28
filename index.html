@@ -8,15 +8,17 @@
     <!-- 1. Подключаем библиотеку Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
-    <!-- 2. Добавляем стили (CSS) -->
+    <!-- 2. Стили (CSS) -->
     <style>
         :root {
-            --primary-color: #3ECF8E; /* Фирменный зеленый цвет Supabase */
+            --primary-color: #3ECF8E; /* Зеленый Supabase */
             --primary-hover: #36b37e;
             --bg-color: #f4f7f6;
             --text-color: #333;
             --border-color: #ddd;
             --danger-color: #e74c3c;
+            --github-color: #24292e; /* Темный GitHub */
+            --github-hover: #1b1f23;
         }
 
         * {
@@ -61,6 +63,7 @@
         .status span {
             font-weight: bold;
             color: var(--primary-color);
+            word-break: break-all;
         }
 
         h2 {
@@ -113,35 +116,51 @@
             cursor: not-allowed;
         }
 
+        /* Стили для кнопки GitHub */
+        .btn-github {
+            background-color: var(--github-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 0; /* Убираем отступ снизу для кнопки GitHub */
+        }
+
+        .btn-github:hover {
+            background-color: var(--github-hover);
+        }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            text-align: center;
+            margin: 20px 0;
+            color: #999;
+            font-size: 14px;
+        }
+
+        .divider::before, .divider::after {
+            content: '';
+            flex: 1;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .divider::before { margin-right: 10px; }
+        .divider::after { margin-left: 10px; }
+
         .message {
             text-align: center;
             font-size: 14px;
             margin-top: 15px;
             min-height: 20px;
+            word-break: break-word;
         }
 
-        .message.error {
-            color: var(--danger-color);
-        }
+        .message.error { color: var(--danger-color); }
+        .message.success { color: var(--primary-color); }
 
-        .message.success {
-            color: var(--primary-color);
-        }
+        .hidden { display: none; }
 
-        .hidden {
-            display: none;
-        }
-
-        .action-buttons {
-            display: flex;
-            gap: 10px;
-        }
-
-        .action-buttons button {
-            margin-bottom: 0;
-        }
-
-        /* Кнопка выхода делаем менее яркой */
         .btn-secondary {
             background-color: #f0f0f0;
             color: var(--text-color);
@@ -171,6 +190,17 @@
 
     <!-- Блок формы Входа/Регистрации -->
     <div id="auth-view">
+        
+        <!-- Кнопка входа через GitHub -->
+        <button class="btn-github" onclick="signInWithGitHub()">
+            <svg height="20" viewBox="0 0 16 16" width="20" fill="white">
+                <path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
+            </svg>
+            Войти через GitHub
+        </button>
+
+        <div class="divider">или</div>
+
         <h2>Вход</h2>
         <div class="input-group">
             <input type="email" id="login-email" placeholder="Email">
@@ -219,7 +249,9 @@
 
     function updateUI(user) {
         if (user) {
-            statusText.innerHTML = `Вы вошли как <span>${user.email}</span>`;
+            // Берем email или имя пользователя из метаданных (для GitHub)
+            const displayName = user.email || (user.user_metadata && user.user_metadata.user_name) || 'Пользователь';
+            statusText.innerHTML = `Вы вошли как <span>${displayName}</span>`;
             authView.classList.add('hidden');
             loggedInView.classList.remove('hidden');
         } else {
@@ -232,6 +264,22 @@
 
     // --- ЛОГИКА АВТОРИЗАЦИИ ---
 
+    // Вход через GitHub
+    async function signInWithGitHub() {
+        clearMessage(authMessage);
+        const { data, error } = await supabaseClient.auth.signInWithOAuth({
+            provider: 'github',
+            options: {
+                // После входа GitHub вернет пользователя на эту же страницу
+                redirectTo: window.location.origin + window.location.pathname 
+            }
+        });
+
+        if (error) {
+            showMessage(authMessage, 'Ошибка входа через GitHub: ' + error.message, true);
+        }
+    }
+
     // Проверка сессии при загрузке страницы
     async function checkSession() {
         const { data: { session }, error } = await supabaseClient.auth.getSession();
@@ -242,7 +290,7 @@
         }
     }
 
-    // Вход
+    // Вход по Email
     async function signIn() {
         clearMessage(authMessage);
         const email = document.getElementById('login-email').value;
@@ -265,7 +313,7 @@
         }
     }
 
-    // Регистрация
+    // Регистрация по Email
     async function signUp() {
         clearMessage(authMessage);
         const email = document.getElementById('signup-email').value;
@@ -285,7 +333,7 @@
             showMessage(authMessage, 'Ошибка регистрации: ' + error.message, true);
         } else {
             showMessage(authMessage, 'Успешно! Проверьте почту для подтверждения.', false);
-            // Если подтверждение почты отключено в Supabase, пользователь войдет сразу
+            // Если в настройках Supabase отключено подтверждение почты, пользователь войдет сразу
             if (data.session) {
                 updateUI(data.user);
             }
@@ -309,7 +357,7 @@
         
         if (!user) return;
 
-        // Пытаемся получить данные из таблицы users, где id совпадает с id пользователя
+        // Ищем данные в таблице users по ID текущего пользователя
         const { data, error } = await supabaseClient
             .from('users')
             .select('*')
@@ -317,10 +365,10 @@
             .single();
 
         if (error) {
-            // Если записи нет, выводим сообщение (это нормально, если вы не настроили триггер)
             showMessage(dataMessage, 'Данные в таблице не найдены (или ошибка RLS).', true);
             console.error(error);
         } else {
+            // Выводим полученные данные в виде строки JSON
             showMessage(dataMessage, `Данные: ${JSON.stringify(data)}`, false);
         }
     }
